@@ -1,0 +1,53 @@
+name: Contracts CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build Contracts
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+        
+    - name: Add wasm32 target
+      run: rustup target add wasm32-unknown-unknown
+      
+    - name: Build contracts
+      run: cargo build --verbose
+      
+    - name: Build WASM
+      run: cargo build -p reputation-contract --target wasm32-unknown-unknown --release
+
+  test:
+    name: Test Contracts
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+        
+    - name: Run tests
+      run: cargo test --verbose
