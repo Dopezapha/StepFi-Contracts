@@ -28,84 +28,42 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Install stellar CLI
-        run: |
-          STELLAR_VERSION=$(curl -s https://api.github.com/repos/stellar/stellar-cli/releases/latest | grep tag_name | cut -d'"' -f4)
-          echo "Installing stellar-cli $STELLAR_VERSION"
-          curl -sSL "https://github.com/stellar/stellar-cli/releases/download/${STELLAR_VERSION}/stellar-cli-x86_64-unknown-linux-gnu.tar.gz" \
-            | tar -xz -C ~/.cargo/bin/
-          chmod +x ~/.cargo/bin/stellar
-          stellar --version
-
       - name: Build all contracts
         run: |
-          cargo build --target wasm32-unknown-unknown --release \
-            -p parameters-contract
-          cargo build --target wasm32-unknown-unknown --release \
-            -p reputation-contract
-          cargo build --target wasm32-unknown-unknown --release \
-            -p vendor-registry-contract
-          cargo build --target wasm32-unknown-unknown --release \
-            -p liquidity-pool-contract
-          cargo build --target wasm32-unknown-unknown --release \
-            -p creditline-contract
-
-      - name: Optimize all contracts
-        run: |
-          stellar contract optimize \
-            --wasm target/wasm32-unknown-unknown/release/parameters_contract.wasm
-          stellar contract optimize \
-            --wasm target/wasm32-unknown-unknown/release/reputation_contract.wasm
-          stellar contract optimize \
-            --wasm target/wasm32-unknown-unknown/release/vendor_registry_contract.wasm
-          stellar contract optimize \
-            --wasm target/wasm32-unknown-unknown/release/liquidity_pool_contract.wasm
-          stellar contract optimize \
-            --wasm target/wasm32-unknown-unknown/release/creditline_contract.wasm
+          cargo build --target wasm32-unknown-unknown \
+            --release -p parameters-contract
+          cargo build --target wasm32-unknown-unknown \
+            --release -p reputation-contract
+          cargo build --target wasm32-unknown-unknown \
+            --release -p vendor-registry-contract
+          cargo build --target wasm32-unknown-unknown \
+            --release -p liquidity-pool-contract
+          cargo build --target wasm32-unknown-unknown \
+            --release -p creditline-contract
 
       - name: Generate SHA256 hashes
         run: |
-          echo "## Contract Hashes" >> $GITHUB_STEP_SUMMARY
-          echo "| Contract | SHA256 |" >> $GITHUB_STEP_SUMMARY
-          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
-          for f in target/wasm32-unknown-unknown/release/*.optimized.wasm; do
-            name=$(basename $f)
-            hash=$(sha256sum $f | cut -d' ' -f1)
-            echo "| $name | $hash |" >> $GITHUB_STEP_SUMMARY
-          done
-          sha256sum target/wasm32-unknown-unknown/release/*.optimized.wasm
+          sha256sum \
+            target/wasm32-unknown-unknown/release/parameters_contract.wasm \
+            target/wasm32-unknown-unknown/release/reputation_contract.wasm \
+            target/wasm32-unknown-unknown/release/vendor_registry_contract.wasm \
+            target/wasm32-unknown-unknown/release/liquidity_pool_contract.wasm \
+            target/wasm32-unknown-unknown/release/creditline_contract.wasm
 
       - name: Delete existing release if exists
-        run: |
-          gh release delete ${{ github.ref_name }} --yes || true
+        run: gh release delete ${{ github.ref_name }} --yes || true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create GitHub Release
         run: |
           gh release create ${{ github.ref_name }} \
-            target/wasm32-unknown-unknown/release/*.optimized.wasm \
+            target/wasm32-unknown-unknown/release/parameters_contract.wasm \
+            target/wasm32-unknown-unknown/release/reputation_contract.wasm \
+            target/wasm32-unknown-unknown/release/vendor_registry_contract.wasm \
+            target/wasm32-unknown-unknown/release/liquidity_pool_contract.wasm \
+            target/wasm32-unknown-unknown/release/creditline_contract.wasm \
             --title "StepFi Contracts ${{ github.ref_name }}" \
-            --notes "## StepFi Protocol Smart Contracts
-
-          All 5 Soroban contracts compiled and optimized.
-
-          ### Contracts
-          - creditline_contract.optimized.wasm
-          - reputation_contract.optimized.wasm
-          - liquidity_pool_contract.optimized.wasm
-          - vendor_registry_contract.optimized.wasm
-          - parameters_contract.optimized.wasm
-
-          ### Verification
-          SHA256 hashes are in the workflow run summary.
-          Compare with deployed contracts on Stellar testnet.
-
-          ### Deployed Contract IDs (Testnet)
-          - Creditline: CAQDHYG3TALPNXG466SZUMJEPOI7VYV732LPFF3GHE4ASPBCNMIQBS3X
-          - Reputation: CC3BO57ZRJGA63QJBIBSOMI25Z3X2I5CYTARYRAUXUAILX6L3OWBL5SB
-          - Liquidity Pool: CACKE7ML2BTOAGQTAAW5NEARHCFX4PXXKGEO6GMU6NHFBVYQFZRJS2BT
-          - Vendor Registry: CCZ6T6NYCDNI26VGTPXKKWQDR7JCIZZ24LCEG4MMYHZJAG6BPWIVAU2L
-          - Parameters: CCAE72SKYX55C5L56DBEFIMFVXRUIJY6JYLBREHEWRFNOW7AX5NBIJ5B"
+            --notes "StepFi Protocol smart contracts compiled from source. See VERIFICATION.md for hash verification instructions."
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
